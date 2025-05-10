@@ -1,0 +1,107 @@
+# C/C++ Specific
+# Object files
+*.o
+*.obj
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Executable files
+*.exe
+*.out
+*.app
+
+# Debug files
+*.d
+*.dSYM/
+*.log
+
+# Static libraries
+*.a
+
+# Shared libraries
+*.so
+*.dylib
+*.dll
+
+# Build directories
+build/
+bin/
+out/
+debug/
+release/
+
+# IDE specific files
+.vscode/
+.idea/
+
+# macOS specific files
+.DS_Store
+
+# Windows specific files
+Thumbs.db
+
+# CMake specific files
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+
+# Visual Studio specific files
+.vs/
+.vscode/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# Java Specific
+# Ignore class files
+*.class
+
+# Ignore package directory
+/target/
+bin/
+
+# Maven specific files
+*.log
+*.war
+*.jar
+*.ear
+
+# IntelliJ IDEA project files
+*.iml
+
+# Eclipse specific files
+.project
+.classpath
+.settings/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Gradle build files (if using gradle)
+.gradle/
+build/
+
+# JUnit output
+/test-outputs/
+
+# Log files
+*.log
+
+# Python Wheels (if using python alongside C++/Java)
+*.whl
+
+# Test output
+nosetests.xml
+coverage.xml
+*.cover
+*.tox/
+*.nox/
+*.coverage/
+*.hypothesis/
+
