@@ -105,3 +105,4 @@ coverage.xml
 *.coverage/
 *.hypothesis/
 
+/C\#_DP/Behavioral/COR_Pattern/obj
