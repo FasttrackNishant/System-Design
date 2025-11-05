@@ -1,4 +1,4 @@
-# System Design - Low Level Design Repository
+# System Design
 
 A simple and practical collection of **Low Level Design (LLD)** concepts with real-world examples, design patterns, SOLID principles, UML diagrams, and working code implementations.
 
