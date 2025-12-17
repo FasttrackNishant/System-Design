@@ -1,4 +1,5 @@
 import enums.PackageStatus;
+import locker.LockerMachine;
 import services.LockerService;
 
 public class Main {

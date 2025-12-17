@@ -8,6 +8,10 @@ public class NotificationService {
 
     public void notifyCustomer(Package pkg , OtpInfo otpInfo)
     {
+        Customer customer = customerRepo.getById(pkg.getCustomerId());
+
+        System.out.println("Noififcation to customer " + customer.getCustomerId() + "Pkg id "+ pkg.getPackageId() +
+                "Is read" + otpInfo.getOtp() + "valid till "+ optInfo.getExpiryTime());
 
     }
 
