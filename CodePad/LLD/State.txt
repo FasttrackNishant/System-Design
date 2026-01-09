@@ -1,0 +1,45 @@
+public class VendingMachine{
+
+    private String selectedItem  ;
+    private Double insertedAmount = 0.0;
+    private State machinestate;
+
+    public VendingMachine() {
+        this.machinestate = State.IDLE;
+    };
+
+    public String getSelectedItem()
+    {
+        return this.selectedItem;
+    }
+
+    public double getInsertedAmount{
+        return this.insertedAmount;
+    }
+
+    public State getMachineState(){
+        return this.machinestate;
+    }
+
+    // Setters
+
+
+
+}
+
+public interface MachineState{
+
+    void selectItem(VendingMachine context , String itemCode);
+    void insertCoin(VendingMachine context , double amount);
+    void dispenseItem(VendingMachine context);
+
+}
+
+public class IdleState implements MachineState
+{
+    @Override
+    public void selectItem(VendingMachine context,String itemCode){
+        context.setSelectedItem(itemCode);
+        context.setMachineState(new ItemSelectedState());
+    }
+}
