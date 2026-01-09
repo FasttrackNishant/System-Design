@@ -5,8 +5,9 @@ public class Main {
     public static void main(String[] args) {
 
         PaymentMethod creditCard = new CreditCardPaymentProcessor();
+        PaymentMethod upiPayment = new UPIPaymentProcessor();
         CheckoutService checkoutService = new CheckoutService();
-        checkoutService.processPaymnet(creditCard,3);
+        checkoutService.processPayment(upiPayment,3);
 
 
     }

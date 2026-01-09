@@ -2,10 +2,10 @@ package ocp;
 
 public class CheckoutService {
 
-    public  void processPaymnet(PaymentMethod paymentMethod , int amount){
+    public  void processPayment(PaymentMethod paymentMethod , int amount){
 
         PaymentProcessor paymentProcessor = new PaymentProcessor();
-        paymentProcessor.processPayment(amount);
+        paymentProcessor.processPayment(paymentMethod,amount);
 
     }
 
