@@ -1,0 +1,162 @@
+// Naive
+
+public class Order{
+
+    private int orderId;
+    private double weight;
+    private double distance;
+
+    public Order(){
+        this.orderId = 1;
+        this.weight = 30;
+        this.distance = 500;
+    }
+
+    public getWeight()
+    {
+        return this.weight;
+    }
+
+    public getDistance(){
+        return this.distance;
+    }
+}
+
+public enum OrderFeeType{
+
+    FLATBASED,
+    WEIGHTBASED,
+    DISTANCEBASED
+
+}
+
+public class ShippingCostCalculator{
+
+    public double cost = 0.0;
+
+    public void calcuateCost(Order order , OrderFeeType type){
+
+    if(type.equals(OrderFeeType.FLATBASED))
+    {
+        System.out.println("Calculating cost on the flat basis");
+        cost = 1000;
+    }
+    else if(type.equals(OrderFeeType.WEIGHTBASED))
+    {
+        System.out.println("Calculating cost on the weight basis");
+        cost = order.getWeight() * 100;
+    }
+    else if((type.equals(OrderFeeType.DISTANCEBASED)))
+    {
+        cost = order.getDistance *  50;
+    }
+
+    return cost;
+
+    }
+}
+
+public class Main{
+
+    public static void main(String[] args){
+
+        Order order1 = new Order;
+        ShippingCostCalculator calculator = new ShippingCostCalculator();
+        double cost = calculator.calcuateCost(order1,OrderFeeType.FLATBASED);
+
+        System.out.println("My Cost was"+ cost);
+
+    }
+}
+
+// Solution
+
+
+public interface ShippingStrategy{
+
+    double calcuateCost(Order order);
+
+}
+
+public FlatRateShipping implements ShippingStrategy{
+
+    private double rate;
+
+    public FlatRateShipping(double rate){
+        this.rate = rate;
+    }
+
+    @Override
+    public double calcuateCost(Order order){
+         System.out.println("Calculating with Flat Rate strategy ($" + rate + ")");
+        return rate;
+    }
+
+}
+
+public WeightBasedShipping implements ShippingStrategy{
+
+    private final double ratePerKg;
+
+    public WeightBasedShipping(double ratePerKg){
+        this.ratePerKg = ratePerKg;
+    }
+
+    @Override
+    public double calcuateCost(Order order){
+        System.out.println("Calculating with Weight-Based strategy ($" + ratePerKg + "/kg)");
+        return order.getTotalWeight() * ratePerKg;
+    }
+
+}
+
+public class ShippingCostService{
+
+    private ShippingStrategy strategy;
+
+    public ShippingCostService(ShippingStrategy strategy){
+        this.strategy =  strategy;
+    }
+
+    public void setStrategy(ShippingStrategy strategy){
+        this.strategy = strategy;
+    }
+
+    public double calcuateShippingCost(Order order){
+
+        if(strategy == null){
+            throw IllegalStateException("strategy not set");
+        }
+
+        double cost = strategy.calcuateCost(order);
+        System.out.println("Calculated cost");
+        return cost;
+
+    }
+}
+
+public class Main{
+
+    public static void main(String[] args){
+
+        ShippingStrategy flatbasedStrategy = new flatbasedStrategy(10);
+        ShippingStrategy weightbasedStrategy = new WeightBasedShipping(4);
+
+        ShippingCostService shippingservice = new ShippingCostService(flatbasedStrategy);
+
+        Order order = new Order();
+
+        double cost = shippingservice.calcuateCost(order);
+
+        shippingservice.setStrategy(weightbasedStrategy);
+
+        double cost = shippingservice.calcuateCost(order);
+
+        
+
+
+
+    }
+
+
+}

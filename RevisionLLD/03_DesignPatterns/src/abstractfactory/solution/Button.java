@@ -1,0 +1,6 @@
+package abstractfactory.solution;
+
+public interface Button {
+    void paint();
+    void onClick();
+}
