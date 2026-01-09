@@ -1,0 +1,27 @@
+
+# Requirements
+
+- authenticate
+- Withdraw
+- Deposit
+- Balance enquiry
+- validate details
+- denominations
+- highest as possible
+
+
+# Core Entities
+
+- ATMMachine
+- NoteDispenser
+- Account
+- Card
+- BankService
+
+# Central Entities
+
+
+
+# Enums
+
+- State -> Menu , InsertCard , Dispensing
