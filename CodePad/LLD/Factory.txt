@@ -1,0 +1,115 @@
+public class EmailNotification{
+
+    public void send(String message){
+        // logic for the sendin email
+        System.out.println("Sending Email Notification");
+    }
+}
+
+public class WhatsappNotification{
+    public void send(String message){
+        System.out.println("Sending Whatapp Notification");
+    }
+}
+
+public class NotificationService{
+
+    public void sendNotification(String type , String message){
+
+        if(type.equlas("Email")){
+            EmailNotification notification = new EmailNotification();
+            notification.send(message);
+        }
+        else if(type.equals("Whatspp")){
+            WhatsappNotification notification = new WhatsappNotification();
+            notification.send(message);
+        }
+
+    }
+
+}
+
+// Simple Factory for this Problem
+
+interface Notification{
+
+    void send(String message);
+}
+
+public class EmailNotification implements Notification{
+
+    @Override
+    public void send(String message){
+        System.out.println("Email Notification Send");
+    }
+}
+
+public class PushNotification implements Notification{
+    
+    @Override
+    public void send(String message){
+        System.out.println("Push Notification Send");
+    }
+}
+
+public class NotificationService{
+    
+    // what to do  // we remove how to create logic from here
+
+    public void sendNotification(String type , String message){
+        Notifcation notification = SimpleNotificationFactory.createNotificationFactory(type);
+        notification.send(message);
+    }
+}
+
+public class SimpleNotificationFactory{
+
+    public static Notifcation createNotificationFactory(String type){
+
+       return switch(type){
+            case "EMAIL" ->new EmailNotification();
+            case "PUSH" -> new PushNotification();
+            default -> throw new IllegalArgumentException("Unknown Notification type")
+       }
+    }
+}            
+
+// Creator
+
+// Abstract Creator
+
+abstract class NotificationCreator{
+
+    public abstract Notification createNotification();
+
+}
+
+public class EmailNotificationCreator extends NotificationCreator{
+
+    @Override
+    public Notifcation createNofication(){
+        return new EmailNotification();
+    }
+
+}
+
+public class PushNotificationCreator extends NotificationCreator{
+
+    @Override
+    public Notifcation createNofication(){
+        return new PushNotification();
+    }
+
+}
+
+public class NotificationService{
+    
+    public void sendNotification(NotificationCreator create , String message)
+    {
+        Notifcation notification = create.createNofication();
+        notification.send(message);
+    }
+}
+
+
+// Concrete Creator
