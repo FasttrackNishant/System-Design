@@ -1,0 +1,73 @@
+public interface TextView{
+
+    void render();
+
+}
+
+public class PlainTextView implements TextView{
+
+    private final String text;
+
+    public PlainTextView(String text){
+        this.text = text;
+    }
+
+    @Override
+    public void render(){
+        System.out.println(text);
+    }
+}
+
+public abstract class TextDecorater implements TextView{
+
+    protected final TextView inner;
+
+    public TextDecorater(TextView inner){
+        this.inner = inner;
+    }
+}
+
+// Concrete Decorater
+
+class BoldDecorater extends TextDecorater{
+
+    public BoldDecorater(TextView inner){
+        super(inner);
+    }
+
+     @Override
+    public void render() {
+        System.out.print("<b>");
+        inner.render();
+        System.out.print("</b>");
+    }
+
+}
+
+class ItalicDecorater extends TextDecorater{
+
+     public ItalicDecorater(TextView inner){
+        super(inner);
+    }
+
+     @Override
+    public void render() {
+        System.out.print("<i>");
+        inner.render();
+        System.out.print("</i>");
+    }
+}
+
+public class Main{
+
+    public static void main(String[] args){
+
+        Textview simpleText = new PlainTextView("Hello Buddy");
+        simpleText.render();
+
+        TextView decorater = new BoldDecorater(simpleText);
+        decorater.render();
+
+
+    }
+}
