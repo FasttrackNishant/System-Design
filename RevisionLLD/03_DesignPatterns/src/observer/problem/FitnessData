@@ -1,0 +1,24 @@
+# **Drawbacks Summary - Tightly Coupled System**
+
+## **Core Problems:**
+
+1. **❌ Rigid Design** - Can't add/remove components without modifying core class
+2. **❌ Hard to Test** - Dependencies can't be mocked/stubbed
+3. **❌ Violates SOLID Principles** - Breaks Single Responsibility & Open/Closed
+4. **❌ No Flexibility** - All users get same behavior, no customization
+5. **❌ Poor Scalability** - Adding features makes code unmaintainable
+
+## **Real Impact:**
+
+- **Maintenance Nightmare** - Every change requires modifying working code
+- **Testing Impossible** - Can't isolate components for unit testing
+- **No Reusability** - Components can't be used elsewhere independently
+- **Runtime Inflexibility** - Can't adapt to different user needs/scenarios
+
+## **The Fix: Observer Pattern**
+**Decouple with:**
+- Publisher (subject) that doesn't know about subscribers
+- Subscribers (observers) that register interest
+- Runtime subscription management
+
+**Result:** Components can plug-in/out without modifying core system.

@@ -1,0 +1,91 @@
+// observer => publisher -> data
+
+public classs FitnessDataObserver{
+    void update(Fitnessdata data);
+}
+
+public interface FitnessdataSubject{
+
+    void registerObserver(FitnessDataObserver observer);
+    void deregisterObsever(FitnessDataObserver observer);
+    void notifyObservers();
+}   
+
+// data
+
+public classs Fitnessdata implements FitnessdataSubject
+{
+    private int steps;
+    private int activityMinutes;
+    private int calories;
+
+    private final List<FitnessDataObserver> observers = new ArrayList<>();
+
+    @Override
+    public void registerObserver(FitnessDataObserver observer){
+        observers.add(observer);
+    }
+
+    @Override
+    public void deregisterObsever(FitnessDataObserver observer){
+        observers.remove(observer);
+    }
+
+    @Override
+    public void notifyObservers(){
+
+        for(FitnessDataObserver observer : observers)
+        {
+            observer.update(this);
+        }
+    }
+
+    public void newDataPush(int steps , int activityMinutes , int calories)
+    {
+         this.steps = steps;
+        this.activeMinutes = activeMinutes;
+        this.calories = calories;
+
+        System.out.println("\nFitnessData: New data received – Steps: " + steps +
+            ", Active Minutes: " + activeMinutes + ", Calories: " + calories);
+
+        notifyObservers();
+
+    }
+
+    public int getSteps() { return steps; }
+    public int getActiveMinutes() { return activeMinutes; }
+    public int getCalories() { return calories; }
+}
+
+class LiveUserActivity implements FitnessDataObserver{
+    @Override
+    public void update(Fitnessdata data){
+           System.out.println("Live Display → Steps: " + data.getSteps() +
+            " | Active Minutes: " + data.getActiveMinutes() +
+            " | Calories: " + data.getCalories());
+    }
+}
+
+public class Main{
+
+    public static void main(String[]args)
+    {
+        Fitnessdata data = new Fitnessdata();
+
+        LiveUserActivity activity = new LiveUserActivity();
+        ProgreessLogger logger = new ProgreessLogger();
+
+        data.registerObserver(activity);
+        data.registerObserver(logger);
+
+        data.newDataPush(32,23,42);
+
+        data.notifyObservers();
+
+        // this will call to all the obsevers
+
+
+
+    }
+}

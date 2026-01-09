@@ -1,0 +1,118 @@
+// LiveActivityDisplayNaive.java
+public class LiveActivityDisplayNaive {
+    public void showStats(int steps, int activeMinutes, int calories) {
+        System.out.println("LiveDisplay: Steps=" + steps +
+                         ", ActiveMins=" + activeMinutes +
+                         ", Calories=" + calories);
+    }
+}
+
+// ProgressLoggerNaive.java
+public class ProgressLoggerNaive {
+    public void logDataPoint(int steps, int activeMinutes, int calories) {
+        System.out.println("ProgressLogger: Logged - Steps: " + steps +
+                         ", Minutes: " + activeMinutes +
+                         ", Calories: " + calories);
+    }
+}
+
+// NotificationServiceNaive.java
+public class NotificationServiceNaive {
+    private static final int DAILY_STEP_GOAL = 10000;
+    private boolean goalNotificationSent = false;
+
+    public void checkAndNotify(int steps) {
+        if (steps >= DAILY_STEP_GOAL && !goalNotificationSent) {
+            System.out.println("NotificationService: 🎉 CONGRATULATIONS! You've reached " +
+                             DAILY_STEP_GOAL + " steps!");
+            goalNotificationSent = true;
+        }
+    }
+
+    public void resetDailyNotifications() {
+        goalNotificationSent = false;
+        System.out.println("NotificationService: Daily notifications reset");
+    }
+}
+
+// FitnessDataNaive.java
+public class FitnessDataNaive {
+    private int steps;
+    private int activeMinutes;
+    private int calories;
+
+    // Direct, hardcoded references to all dependent modules
+    private LiveActivityDisplayNaive liveDisplay = new LiveActivityDisplayNaive();
+    private ProgressLoggerNaive progressLogger = new ProgressLoggerNaive();
+    private NotificationServiceNaive notificationService = new NotificationServiceNaive();
+
+    public FitnessDataNaive() {
+        // Default constructor
+    }
+
+    // Alternative constructor for client injection
+    public FitnessDataNaive(LiveActivityDisplayNaive display,
+                           ProgressLoggerNaive logger,
+                           NotificationServiceNaive notifier) {
+        this.liveDisplay = display;
+        this.progressLogger = logger;
+        this.notificationService = notifier;
+    }
+
+    public void newFitnessDataPushed(int newSteps, int newActiveMinutes, int newCalories) {
+        this.steps = newSteps;
+        this.activeMinutes = newActiveMinutes;
+        this.calories = newCalories;
+
+        System.out.println("\nFitnessDataNaive: New data received - Steps: " + steps +
+            ", ActiveMins: " + activeMinutes + ", Calories: " + calories);
+
+        // Manually notify each dependent module
+        liveDisplay.showStats(steps, activeMinutes, calories);
+        progressLogger.logDataPoint(steps, activeMinutes, calories);
+        notificationService.checkAndNotify(steps);
+    }
+
+    public void dailyReset() {
+        // Reset logic...
+        if (notificationService != null) {
+            notificationService.resetDailyNotifications();
+        }
+        System.out.println("FitnessDataNaive: Daily data reset.");
+        newFitnessDataPushed(0, 0, 0); // Notify with reset state
+    }
+}
+
+// FitnessAppNaiveClient.java
+public class FitnessAppNaiveClient {
+    public static void main(String[] args) {
+        System.out.println("=== Fitness App (Naive Implementation) ===\n");
+
+        // Create individual components
+        LiveActivityDisplayNaive display = new LiveActivityDisplayNaive();
+        ProgressLoggerNaive logger = new ProgressLoggerNaive();
+        NotificationServiceNaive notifier = new NotificationServiceNaive();
+
+        // Inject them into FitnessDataNaive (constructor injection)
+        FitnessDataNaive fitnessData = new FitnessDataNaive(display, logger, notifier);
+
+        // Simulate data updates
+        System.out.println("\n--- Data Update 1 ---");
+        fitnessData.newFitnessDataPushed(500, 5, 20);
+
+        System.out.println("\n--- Data Update 2 ---");
+        fitnessData.newFitnessDataPushed(9800, 85, 350);
+
+        System.out.println("\n--- Data Update 3 ---");
+        fitnessData.newFitnessDataPushed(10100, 90, 380); // Goal should be hit
+
+        System.out.println("\n--- Data Update 4 (Same goal) ---");
+        fitnessData.newFitnessDataPushed(10200, 95, 390); // Should not notify again
+
+        System.out.println("\n--- Daily Reset ---");
+        fitnessData.dailyReset();
+
+        System.out.println("\n--- New Day Data ---");
+        fitnessData.newFitnessDataPushed(10500, 100, 400); // Should notify again after reset
+    }
+}
