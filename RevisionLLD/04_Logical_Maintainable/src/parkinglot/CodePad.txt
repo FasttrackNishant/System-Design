@@ -1,0 +1,319 @@
+Parking lot system
+
+# Clarify the Requirements
+
+
+## Functional Requirments
+
+- Single level or Multi level Parking lot
+- Diff types of vehicle ?
+- Vehicle size & Parking slot size => how should they be compatible
+- Parking Lot Assignment is Automatic
+- Quering and display (optional)
+- As of Now Random Id
+- Entry and Exit time
+- Parking Fees
+
+## Non Functional Requirements
+
+- Scalability
+- Extensibility
+- Concurrency
+
+## Rules
+
+Bike => Small
+Van,Car => Medium
+Truck => Large
+
+----------------------------
+# Breakdown
+
+## ParkingLot
+    - ParkingFloor
+        - ParkingSpot
+            - Vehicle
+
+
+
+
+----------------
+# Structure
+
+## Core Entities
+
+- Parking lot
+- Parking Floor
+- Vehicle
+- Parking Spot
+- Parking Ticket
+
+
+## Central Entities
+
+- Fees Management 
+
+-------------------------
+
+# Functions & Classes
+
+- Parking lot
+- Parking Floor
+- Vehicle
+- Parking Spot
+- Parking Ticket
+
+
+------------------------
+
+# Classes & RelationShips
+
+## Bottom Up Approach
+
+public enum VehicleSize{
+    SMALL,
+    MEDIUM,
+    LARGE
+}
+
+public abstract class Vehicle{
+
+    private String lisenceNumber ;
+    private VehicleSize size;
+
+    public Vehicle(String lisenceNumber, VehicleSize size)
+    {
+        this.lisenceNumber = lisenceNumber;
+        this.size = size;
+    }
+
+    public VehicleSize getVehicleSize(){
+        return this.size;
+    } 
+
+    public String getLiseceNumber(){
+        return this.lisenceNumber;
+    }
+
+}
+
+class Bike extends Vehicle{
+
+    public Bike(String lisenceNumber){
+        super(lisenceNumber,VehicleSize.SMALL);
+    }
+
+
+}
+
+class Car extends Vehicle{
+
+    public Car(String lisenceNumber){
+        super(lisenceNumber,VehicleSize.MEDIUM);
+    }
+
+
+}
+
+class Truck extends Vehicle{
+
+    public Truck(String lisenceNumber){
+        super(lisenceNumber,Vehicle.LARGE);
+    }
+
+}
+
+
+public class ParkingTicket{
+
+    private String ticketId;
+    private Vehicle vehicle;
+    private long entryTime;
+    private long exitTime;
+    private ParkingSpot spot;
+
+    public ParkingTicket(Vehicle vehicle ,ParkingSpot spot){
+
+        this.ticketId = UUID.randomUUID.toString();
+        this.vehicle = vehicle;
+        this.entryTime = new Date().getTime();
+        this.spot = spot;
+    }
+
+    public String getTicketId(){
+        return this.ticketId;     
+    }
+
+    public String getParkingSpot(){
+        return this.spot;
+    }
+
+    public void setExitTimeStamp(){
+        this.exitTime = new Date().getTime();
+    }
+
+}
+
+public class ParkingSpot{
+    
+    private String spotId;
+    private VehicleSize spotSize;
+    private Vehicle parkedVehicle;
+    private boolean isOccupied;
+
+    public ParkingSpot(String spotId , VehicleSize spotSize , Vehicle parkedVehicle , boolean isOccupied){
+
+        this.spotId = spotId;
+        this.spotSize = spotSize;
+        this.parkedVehicle = parkedVehicle;
+        this.isOccupied = isOccupied;
+    }
+
+    public String getSpotId(){
+        return this.spotId;
+    }
+
+    public void parkVehicle(Vehicle vehicle){
+        this.vehicle = vehicle;
+        this.isOccupied = true;
+
+    }
+
+    public void unparkVehicle(Vehicle vehicle){
+        this.vehicle = null;
+        this.isOccupied = false;
+    }
+
+    public boolean isOccupied(){
+        return this.isOccupied;
+    }
+
+    public boolean canFitVehicle(Vehicle vehicle){
+
+        if(isOccupied) return false;
+
+        switch(vehicle.getVehicleSize()){
+
+            case SMALL:
+                return spotSize == VehicleSize.SMALL;
+            case MEDIUM:
+                return spotSize == VehicleSize.MEDIUM || VehicleSize.LARGE;
+            case LARGE:
+                return spotSize == VehicleSize.LARGE;
+            default:
+                return false;
+            
+        }
+    }
+}
+
+public class ParkingFloor{
+
+    private int floorNumber;
+    private Map<String,ParkingSpot> spots;
+
+    public ParkingFloor(int floorNumber){
+        this.floorNumber = floorNumber;
+        spots = new ConcurrentHashMap<>();
+    }
+
+    public void addSpot(ParkingSpot spot){
+        if(spot == null){
+            System.out.println("Not Valid Spot");
+            return;
+        }
+
+        spots.put(spot.getSpotId(),spot);
+    }
+
+    // Find avaible spot
+    public ParkingSpot findAvailableSpot(Vehicle vehicle){
+
+        for(ParkingSpot spot : spots.values()){
+
+            if(!spot.isOccupied() && spot.canFitVehicle(vehicle) )
+            {
+                return spot;
+            }
+        }
+
+        return null;
+    }
+}
+
+public class ParkingLotSystem{
+
+    // singleton
+    // two resp . find correct spot -> , calculet the fee
+
+   private static final ParkingLotSystem instance ;
+   private final List<ParkingFloor> floors = new ArrayList<>();
+   private final Map<String,ParkingTicket> activeTickets = new ConcurrentHashMap<>();
+   private FeeStrategy feeStrategy = new FlatFeeStarategy()
+
+   private ParkingLotSystem(){}
+
+   public static synchronized ParkingLotSystem getInstance(){
+
+        if(instance == null){
+            instance = new ParkingLotSystem();
+        }
+
+        return instance;
+   }
+
+   public void parkVehicle(Vehicle vehicle){
+    for(ParkingFloor floor : floors){
+        ParkingSpot availableSpot = floor.findAvailableSpot(vehicle);
+
+        if(availableSpot != null){
+            availableSpot.parkVehicle(vehicle);
+            ParkingTicket ticket = new ParkingTicket(vehicle,availableSpot);
+            activeTickets.put(vehicle.getLiseceNumber,ticket);
+            return ticket;
+        } 
+    }
+   }
+
+   public void unparkVehicle(Vehicle vehicle){
+
+        String lisenceNumber = vehicle.getLiseceNumber();
+        ParkingTicket currentTicket =  activeTickets.get(lisenceNumber);
+        ParkingSpot currentSpot = currentTicket.getParkingSpot();
+        currentSpot.unparkVehicle();
+        ticket.setExitTimeStamp();
+
+   }
+
+
+
+}
+
+public class Client{
+
+    Vechicle a = new bike 
+    parkg 
+    aprkg 
+    abstractnew 
+
+
+
+
+}
+
+
+
+# RelationShips
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,40 @@
+## **Problem 2: Rate Limiter (LLD + Coding)**
+
+
+## 📌 Problem Statement
+
+Design and implement a **Rate Limiter**.
+
+### Requirements
+
+1. Limit requests **per user**
+2. Allow **N requests per T seconds**
+3. If limit exceeded → reject request
+4. Code should be:
+
+   * Clean
+   * Easy to extend
+   * Production-readable
+
+### Constraints
+
+* Single machine
+* In-memory
+* No concurrency
+* Language: **Java**
+
+---
+
+## 🔍 Example
+
+```
+Rate limit: 3 requests per 10 seconds
+
+User A:
+Request 1 → allowed
+Request 2 → allowed
+Request 3 → allowed
+Request 4 → rejected
+(wait 10 sec)
+Request 5 → allowed
+```
