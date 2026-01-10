@@ -1,0 +1,26 @@
+
+# Requirments
+
+
+Diff types => SMS , Push , Email
+Retry Logic
+Async Messages
+
+
+# Core Entities
+
+Notification
+Receipent
+
+
+# Central Entities
+
+NotificationService
+NotificationGateway
+RetryDecorater
+NotifcationFactory
+
+
+# Enums
+
+NotificationType
