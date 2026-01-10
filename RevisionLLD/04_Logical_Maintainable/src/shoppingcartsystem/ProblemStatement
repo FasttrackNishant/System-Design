@@ -1,0 +1,28 @@
+## **Problem: Shopping Cart System**
+
+Design and implement a **simple Shopping Cart**.
+
+---
+
+## 📌 Requirements (read carefully)
+
+1. Each item has:
+
+   * `itemId` (String)
+   * `name`
+   * `price`
+   * `quantity`
+
+2. Cart should support:
+
+   * `addItem(item)`
+   * `removeItem(itemId)`
+   * `getTotalPrice()`
+   * `getAllItems()`
+
+3. Rules:
+
+   * If the same item is added again → **increase quantity**
+   * Quantity cannot be negative
+   * Cart should be **easy to extend** later (discounts, coupons, etc.)
+
