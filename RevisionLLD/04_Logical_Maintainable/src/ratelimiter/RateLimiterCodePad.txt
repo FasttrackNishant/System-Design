@@ -1,0 +1,53 @@
+
+
+/*********
+
+# Requirments
+
+- per user rate limiting
+- fixed window & token bucket algorithm
+- 100 rp /60 rate limit
+- drop request & notify the user when limit is reached
+- thread safe & concurrent access
+
+
+# Core Entities
+
+- UserRequestInfo
+- TokenBucket
+
+# Central Entities
+
+- RatelimitingStrategy
+    - FixedWindowStrategy
+    - TokenBucketStrategy
+
+- RateLimiterService
+
+- RateLimiterDemo
+- Rule
+- UserRateLimiter
+
+# Relation ships
+
+1. RateLimiterService -> has a -> RatelimitingStrategy
+2. FixedWindowStrategy -> has a -> UserRequestInfo
+3. TokenBucketStrategy -> has a -> TokenBucket
+4. RateLimiterDemo -> has a -> RateLimiterService
+
+
+# Key Design Pattern
+
+- Singleton
+    - RateLimiterDemo
+
+- Strategy
+    - FixedWindowStrategy
+    - TokenBucketStrategy
+
+- Facade
+    - RateLimiterDemo
+
+
+*********/
+
