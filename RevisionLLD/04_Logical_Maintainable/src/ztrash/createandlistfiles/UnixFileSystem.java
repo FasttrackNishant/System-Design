@@ -1,4 +1,4 @@
-package filesystem.createandlistfiles;
+package ztrash.createandlistfiles;
 
 import java.time.Instant;
 import java.util.Map;

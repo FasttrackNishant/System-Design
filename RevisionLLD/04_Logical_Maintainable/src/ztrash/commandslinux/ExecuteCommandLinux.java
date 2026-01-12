@@ -1,4 +1,4 @@
-package filesystem.commandslinux;
+package ztrash.commandslinux;
 
 import java.time.Instant;
 import java.util.Map;

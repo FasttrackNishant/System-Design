@@ -1,4 +1,4 @@
-package filesystem.findfilesinsystem;
+package ztrash.findfilesinsystem;
 
 import java.util.*;
 
