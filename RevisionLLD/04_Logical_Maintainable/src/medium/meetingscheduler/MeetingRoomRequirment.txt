@@ -1,0 +1,38 @@
+**Problem Definition:** A meeting scheduler software helps organizations arrange meetings for multiple participants. This software selects a suitable time and place based on when participants are available. It aims to ensure that most people can attend the meeting at the chosen time and place. Users can book or cancel meetings using this system. Participants get notifications about these changes quickly. The organizer can also add new people to the meeting even after it has been scheduled.
+
+**Using a Meeting Scheduler:** When designing a meeting scheduler, it's crucial to decide which components to include. Here are some key areas the interviewer might expect you to discuss:
+
+**Room Assignment:** The meeting scheduler assigns a room for each meeting. You should ask the interviewer these questions to understand room assignment better:
+
+*   How does the system find out which rooms are available?
+*   How important is a room's capacity when assigning it for a meeting?
+
+**Availability of Attendees:** Meetings involve multiple attendees, each with different schedules. To understand how the scheduler manages this, consider asking:
+
+*   How does the system check if attendees are available?
+*   How does the system get access to all attendees' meeting schedules?
+
+**Design Approach:** We will use a bottom-up design approach to create a meeting scheduler:
+
+*   Start by designing small components like time intervals and meeting rooms.
+*   Use these components to build larger ones, such as a meeting or a calendar.
+*   Continue this process until we've designed the entire scheduler.
+
+**Design Pattern:** In an interview, it's beneficial to discuss which design patterns your meeting scheduler aligns with. Mentioning design patterns shows that you understand advanced object-oriented design concepts.
+
+**Requirement Collection:**
+The requirements for the meeting scheduler are outlined as follows:
+
+**R1:** There must be a specific number of meeting rooms available.
+
+**R2:** Each meeting room should hold a certain number of people based on its capacity.
+
+**R3:** Unless already booked, each meeting room should be able to be reserved, with a set start time and end time.
+
+**R4:** A notification must be sent to everyone invited to the meeting.
+
+**R5:** All invitees will receive an invitation, whether or not they are available at that time. They can accept or decline the invite.
+
+**R6:** Every user should have a calendar that helps track dates and times and allows them to schedule or cancel meetings.
+
+Having identified these requirements, we will explore different use cases for the meeting scheduler in the next lesson.
