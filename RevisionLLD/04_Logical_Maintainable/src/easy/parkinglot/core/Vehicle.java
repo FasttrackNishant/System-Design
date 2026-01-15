@@ -1,4 +1,4 @@
-package easy.parkinglot;
+package easy.parkinglot.core;
 
 abstract class Vehicle{
 

@@ -1,4 +1,4 @@
-package easy.parkinglot;
+package easy.parkinglot.core;
 
 import java.util.List;
 import java.util.Map;

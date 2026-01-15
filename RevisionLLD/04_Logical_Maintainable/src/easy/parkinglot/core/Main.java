@@ -1,4 +1,4 @@
-package easy.parkinglot;
+package easy.parkinglot.core;
 
 public class Main {
     public static void main(String[] args) {
