@@ -1,9 +1,6 @@
 package medium.urlshortner.core;
 
-import java.net.URL;
-import java.security.Key;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
