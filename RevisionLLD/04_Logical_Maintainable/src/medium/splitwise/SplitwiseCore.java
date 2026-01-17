@@ -10,6 +10,14 @@ import java.util.concurrent.ConcurrentHashMap;
 enum SplitType {
     EXACT,
     PERCENTAGE,
+    EQUAL
+}
+
+class User {
+    private String id;
+    private String name;
+    private BalanceSheet balanceSheet;
+
     public User(String name) {
         this.id = UUID.randomUUID().toString();
         this.name = name;
