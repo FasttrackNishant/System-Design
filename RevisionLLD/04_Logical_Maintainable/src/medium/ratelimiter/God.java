@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-class Client {
+classClient {
 
     public static void main(String[] args) throws InterruptedException {
         String userId = "10010";
