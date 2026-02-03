@@ -1,14 +1,54 @@
+class PaymentRequest:
+    def __init__(self, builder):
+        self.transaction_id = str(uuid.uuid4())
+        self.payer_id = builder._payer_id
+        self.amount = builder._amount
+        self.currency = builder._currency
+        self.payment_method = builder._payment_method
+        self.payment_details = builder._payment_details
 
+    def get_transaction_id(self) -> str:
+        return self.transaction_id
 
+    def get_amount(self) -> float:
+        return self.amount
 
+    def get_currency(self) -> str:
+        return self.currency
 
+    def get_payment_method(self) -> PaymentMethod:
+        return self.payment_method
 
+    class Builder:
+        def __init__(self):
+            self._payer_id = None
+            self._amount = None
+            self._currency = None
+            self._payment_method = None
+            self._payment_details = None
 
+        def payer_id(self, payer_id: str):
+            self._payer_id = payer_id
+            return self
 
+        def amount(self, amount: float):
+            self._amount = amount
+            return self
 
+        def currency(self, currency: str):
+            self._currency = currency
+            return self
 
+        def payment_method(self, payment_method: PaymentMethod):
+            self._payment_method = payment_method
+            return self
 
+        def payment_details(self, payment_details: Dict[str, str]):
+            self._payment_details = payment_details
+            return self
 
+        def build(self) -> 'PaymentRequest':
+            return PaymentRequest(self)
 
 
 
@@ -20,8 +60,16 @@
 
 
 
+class PaymentResponse:
+    def __init__(self, status: PaymentStatus, message: str):
+        self.status = status
+        self.message = message
 
+    def get_status(self) -> PaymentStatus:
+        return self.status
 
+    def get_message(self) -> str:
+        return self.message
 
 
 
@@ -32,10 +80,24 @@
 
 
 
+class Transaction:
+    def __init__(self, request: PaymentRequest):
+        self.id = request.get_transaction_id()
+        self.request = request
+        self.status = PaymentStatus.INITIATED
+        self.timestamp = datetime.now()
 
+    def set_status(self, status: PaymentStatus) -> None:
+        self.status = status
 
+    def get_id(self) -> str:
+        return self.id
 
+    def get_status(self) -> PaymentStatus:
+        return self.status
 
+    def get_request(self) -> PaymentRequest:
+        return self.request
 
 
 
@@ -43,12 +105,20 @@
 
 
 
+class PaymentMethod(Enum):
+    CREDIT_CARD = "CREDIT_CARD"
+    PAYPAL = "PAYPAL"
+    UPI = "UPI"
 
 
 
 
 
 
+class PaymentStatus(Enum):
+    INITIATED = "INITIATED"
+    SUCCESSFUL = "SUCCESSFUL"
+    FAILED = "FAILED"
 
 
 
@@ -61,54 +131,186 @@
 
 
 
+class PaymentProcessorFactory:
+    @staticmethod
+    def get_processor(method: PaymentMethod) -> PaymentProcessor:
+        if method == PaymentMethod.CREDIT_CARD:
+            return CreditCardProcessor()
+        elif method == PaymentMethod.UPI:
+            return UPIProcessor()
+        elif method == PaymentMethod.PAYPAL:
+            return PayPalProcessor()
+        else:
+            raise ValueError(f"Unsupported payment method: {method}")
 
 
 
 
+class CustomerNotifier(PaymentObserver):
+    def on_transaction_update(self, transaction: Transaction) -> None:
+        if transaction.get_status() == PaymentStatus.SUCCESSFUL:
+            print("--- CUSTOMER EMAIL ---")
+            print(f"Your payment of {transaction.get_request().get_amount()} was successful. Transaction ID: {transaction.get_id()}")
+            print("----------------------")
 
 
 
 
+class MerchantNotifier(PaymentObserver):
+    def on_transaction_update(self, transaction: Transaction) -> None:
+        print("--- MERCHANT NOTIFICATION ---")
+        print(f"Transaction {transaction.get_id()} status updated to: {transaction.get_status()}")
+        print("-----------------------------")
 
 
 
 
+class PaymentObserver(ABC):
+    @abstractmethod
+    def on_transaction_update(self, transaction: Transaction) -> None:
+        pass
 
 
 
 
 
 
+class AbstractPaymentProcessor(PaymentProcessor):
+    MAX_RETRIES = 3
 
+    def process_payment(self, request: PaymentRequest) -> PaymentResponse:
+        attempts = 0
+        while attempts < self.MAX_RETRIES:
+            response = self.do_process(request)
+            attempts += 1
+            if response.get_status() != PaymentStatus.FAILED:
+                break
+        return response
 
+    @abstractmethod
+    def do_process(self, request: PaymentRequest) -> PaymentResponse:
+        pass
 
 
 
 
 
+class CreditCardProcessor(AbstractPaymentProcessor):
+    def do_process(self, request: PaymentRequest) -> PaymentResponse:
+        print(f"Processing credit card payment of amount {request.get_amount()} {request.get_currency()}")
+        # Simulate interaction with Visa/Mastercard network
+        return PaymentResponse(PaymentStatus.SUCCESSFUL, "Credit Card payment successful.")
 
 
 
 
+class PaymentProcessor(ABC):
+    @abstractmethod
+    def process_payment(self, request: PaymentRequest) -> PaymentResponse:
+        pass
 
 
 
 
 
+class PayPalProcessor(AbstractPaymentProcessor):
+    def do_process(self, request: PaymentRequest) -> PaymentResponse:
+        print(f"Redirecting to PayPal for transaction {request.get_transaction_id()}")
+        # Simulate PayPal API interaction
+        return PaymentResponse(PaymentStatus.SUCCESSFUL, "Paypal payment successful.")
 
 
 
 
+class UPIProcessor(AbstractPaymentProcessor):
+    def do_process(self, request: PaymentRequest) -> PaymentResponse:
+        print(f"Processing UPI payment of {request.get_amount()} {request.get_currency()}")
+        return PaymentResponse(PaymentStatus.SUCCESSFUL, "UPI payment successful.")
 
 
 
 
 
+def main():
+    # 1. Setup the gateway facade
+    payment_gateway = PaymentGatewayService.get_instance()
 
+    # 2. Register observers to be notified of transaction events
+    payment_gateway.add_observer(MerchantNotifier())
+    payment_gateway.add_observer(CustomerNotifier())
 
+    print("----------- SCENARIO 1: Successful Credit Card Payment -----------")
+    # a. Merchant's backend creates a payment request
+    cc_request = (PaymentRequest.Builder()
+                  .payer_id("U-123")
+                  .amount(150.75)
+                  .currency("INR")
+                  .payment_method(PaymentMethod.CREDIT_CARD)
+                  .payment_details({"cardNumber": "1234..."})
+                  .build())
 
+    # b. Merchant's backend sends it to the facade
+    payment_gateway.process_payment(cc_request)
 
+    print("\n----------- SCENARIO 2: Successful PayPal Payment -----------")
+    paypal_request = (PaymentRequest.Builder()
+                      .payer_id("U-456")
+                      .amount(88.50)
+                      .currency("USD")
+                      .payment_method(PaymentMethod.PAYPAL)
+                      .payment_details({"email": "customer@example.com"})
+                      .build())
 
+    payment_gateway.process_payment(paypal_request)
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+
+class PaymentGatewayService:
+    _instance = None
+    _lock = Lock()
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance.observers = []
+        return cls._instance
+
+    @classmethod
+    def get_instance(cls):
+        return cls()
+
+    def add_observer(self, observer: PaymentObserver) -> None:
+        self.observers.append(observer)
+
+    def remove_observer(self, observer: PaymentObserver) -> None:
+        if observer in self.observers:
+            self.observers.remove(observer)
+
+    def _notify_observers(self, transaction: Transaction) -> None:
+        for observer in self.observers:
+            observer.on_transaction_update(transaction)
+
+    def process_payment(self, request: PaymentRequest) -> Transaction:
+        transaction = Transaction(request)
+        try:
+            processor = PaymentProcessorFactory.get_processor(request.get_payment_method())
+            response = processor.process_payment(request)
+            transaction.set_status(response.get_status())
+        except Exception as e:
+            print(f"Payment processing failed: {e}")
+            transaction.set_status(PaymentStatus.FAILED)
+        
+        self._notify_observers(transaction)
+        return transaction
 
 
 
