@@ -1,8 +1,26 @@
 
+class AutocompleteSystemBuilder {
+private:
+    RankingStrategy* rankingStrategy;
+    int maxSuggestions;
 
+public:
+    AutocompleteSystemBuilder() : rankingStrategy(new FrequencyBasedRanking()), maxSuggestions(10) {}
 
+    AutocompleteSystemBuilder& withRankingStrategy(RankingStrategy* strategy) {
+        rankingStrategy = strategy;
+        return *this;
+    }
 
+    AutocompleteSystemBuilder& withMaxSuggestions(int max) {
+        maxSuggestions = max;
+        return *this;
+    }
 
+    AutocompleteSystem build() {
+        return AutocompleteSystem(rankingStrategy, maxSuggestions);
+    }
+};
 
 
 
@@ -11,9 +29,22 @@
 
 
 
+class Suggestion {
+private:
+    string word;
+    int weight;
 
+public:
+    Suggestion(const string& word, int weight) : word(word), weight(weight) {}
 
+    string getWord() const {
+        return word;
+    }
 
+    int getWeight() const {
+        return weight;
+    }
+};
 
 
 
@@ -21,12 +52,55 @@
 
 
 
+class Trie {
+private:
+    TrieNode* root;
 
+    void collect(TrieNode* node, const string& currentPrefix, vector<Suggestion>& suggestions) {
+        if (node->isEndOfWordCheck()) {
+            suggestions.push_back(Suggestion(currentPrefix, node->getFrequency()));
+        }
 
+        for (auto& pair : node->getChildren()) {
+            collect(pair.second, currentPrefix + pair.first, suggestions);
+        }
+    }
 
+public:
+    Trie() {
+        root = new TrieNode();
+    }
 
+    void insert(const string& word) {
+        TrieNode* current = root;
+        for (char ch : word) {
+            if (current->getChildren().find(ch) == current->getChildren().end()) {
+                current->getChildren()[ch] = new TrieNode();
+            }
+            current = current->getChildren()[ch];
+        }
+        current->setEndOfWord(true);
+        current->incrementFrequency();
+    }
 
+    TrieNode* searchPrefix(const string& prefix) {
+        TrieNode* current = root;
+        for (char ch : prefix) {
+            auto it = current->getChildren().find(ch);
+            if (it == current->getChildren().end()) {
+                return nullptr;
+            }
+            current = it->second;
+        }
+        return current;
+    }
 
+    vector<Suggestion> collectSuggestions(TrieNode* startNode, const string& prefix) {
+        vector<Suggestion> suggestions;
+        collect(startNode, prefix, suggestions);
+        return suggestions;
+    }
+};
 
 
 
@@ -48,12 +122,35 @@
 
 
 
+class TrieNode {
+private:
+    map<char, TrieNode*> children;
+    bool isEndOfWord;
+    int frequency;
 
+public:
+    TrieNode() : isEndOfWord(false), frequency(0) {}
 
+    map<char, TrieNode*>& getChildren() {
+        return children;
+    }
 
+    bool isEndOfWordCheck() const {
+        return isEndOfWord;
+    }
 
+    void setEndOfWord(bool endOfWord) {
+        isEndOfWord = endOfWord;
+    }
 
+    int getFrequency() const {
+        return frequency;
+    }
 
+    void incrementFrequency() {
+        frequency++;
+    }
+};
 
 
 
@@ -70,6 +167,16 @@
 
 
 
+class AlphabeticalRanking : public RankingStrategy {
+public:
+    vector<Suggestion> rank(vector<Suggestion> suggestions) override {
+        sort(suggestions.begin(), suggestions.end(), 
+             [](const Suggestion& a, const Suggestion& b) {
+                 return a.getWord() < b.getWord();
+             });
+        return suggestions;
+    }
+};
 
 
 
@@ -77,12 +184,27 @@
 
 
 
+class FrequencyBasedRanking : public RankingStrategy {
+public:
+    vector<Suggestion> rank(vector<Suggestion> suggestions) override {
+        sort(suggestions.begin(), suggestions.end(), 
+             [](const Suggestion& a, const Suggestion& b) {
+                 return a.getWeight() > b.getWeight();
+             });
+        return suggestions;
+    }
+};
 
 
 
 
 
 
+class RankingStrategy {
+public:
+    virtual ~RankingStrategy() = default;
+    virtual vector<Suggestion> rank(vector<Suggestion> suggestions) = 0;
+};
 
 
 
@@ -93,12 +215,119 @@
 
 
 
+int main() {
+    cout << "----------- SCENARIO 1: Frequency-based Ranking -----------" << endl;
 
+    // 1. Build the system with the default frequency-based strategy
+    AutocompleteSystem systemByFrequency = AutocompleteSystemBuilder()
+            .withMaxSuggestions(5)
+            .withRankingStrategy(new FrequencyBasedRanking())
+            .build();
 
+    // 2. Feed data into the system
+    // 'canada' is added most frequently, followed by 'car'
+    vector<string> dictionary = {
+        "car", "cat", "cart", "cartoon", "canada", "candy",
+        "car", "canada", "canada", "car", "canada", "canopy", "captain"
+    };
+    systemByFrequency.addWords(dictionary);
 
+    // 3. Get suggestions for a prefix
+    string prefix1 = "ca";
+    vector<string> suggestions1 = systemByFrequency.getSuggestions(prefix1);
+    cout << "Suggestions for '" << prefix1 << "': ";
+    for (const string& suggestion : suggestions1) {
+        cout << suggestion << " ";
+    }
+    cout << endl;
 
+    string prefix2 = "car";
+    vector<string> suggestions2 = systemByFrequency.getSuggestions(prefix2);
+    cout << "Suggestions for '" << prefix2 << "': ";
+    for (const string& suggestion : suggestions2) {
+        cout << suggestion << " ";
+    }
+    cout << endl;
 
+    cout << endl << "----------- SCENARIO 2: Alphabetical Ranking -----------" << endl;
 
+    // 1. Build a new system with the alphabetical strategy
+    AutocompleteSystem systemAlphabetical = AutocompleteSystemBuilder()
+            .withRankingStrategy(new AlphabeticalRanking())
+            .build();
+
+    // 2. Feed the same data
+    systemAlphabetical.addWords(dictionary);
+
+    // 3. Get suggestions for the same prefix
+    vector<string> suggestions3 = systemAlphabetical.getSuggestions(prefix1);
+    cout << "Suggestions for '" << prefix1 << "' (alphabetical): ";
+    for (const string& suggestion : suggestions3) {
+        cout << suggestion << " ";
+    }
+    cout << endl;
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class AutocompleteSystem {
+private:
+    Trie trie;
+    RankingStrategy* rankingStrategy;
+    int maxSuggestions;
+
+    string toLowerCase(const string& str) {
+        string result = str;
+        transform(result.begin(), result.end(), result.begin(), ::tolower);
+        return result;
+    }
+
+public:
+    AutocompleteSystem(RankingStrategy* rankingStrategy, int maxSuggestions) 
+        : rankingStrategy(rankingStrategy), maxSuggestions(maxSuggestions) {}
+
+    void addWord(const string& word) {
+        trie.insert(toLowerCase(word));
+    }
+
+    void addWords(const vector<string>& words) {
+        for (const string& word : words) {
+            addWord(word);
+        }
+    }
+
+    vector<string> getSuggestions(const string& prefix) {
+        TrieNode* prefixNode = trie.searchPrefix(toLowerCase(prefix));
+        if (prefixNode == nullptr) {
+            return vector<string>();
+        }
+
+        vector<Suggestion> rawSuggestions = trie.collectSuggestions(prefixNode, toLowerCase(prefix));
+        vector<Suggestion> rankedSuggestions = rankingStrategy->rank(rawSuggestions);
+
+        vector<string> result;
+        int limit = min(maxSuggestions, (int)rankedSuggestions.size());
+        for (int i = 0; i < limit; i++) {
+            result.push_back(rankedSuggestions[i].getWord());
+        }
+        return result;
+    }
+};
 
 
 
