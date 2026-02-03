@@ -1,45 +1,279 @@
 
 
+class Board {
+private:
+   int size;
+   map<int, int> snakesAndLadders;
+
+public:
+   Board(int size, const vector<BoardEntity*>& entities) : size(size) {
+       for (BoardEntity* entity : entities) {
+           snakesAndLadders[entity->getStart()] = entity->getEnd();
+       }
+   }
+
+   int getSize() const {
+       return size;
+   }
+
+   int getFinalPosition(int position) const {
+       auto it = snakesAndLadders.find(position);
+       return it != snakesAndLadders.end() ? it->second : position;
+   }
+};
+
+
+
+class BoardEntity {
+private:
+   int start;
+   int end;
+
+public:
+   BoardEntity(int start, int end) : start(start), end(end) {}
+
+   int getStart() const {
+       return start;
+   }
+
+   int getEnd() const {
+       return end;
+   }
+
+   virtual ~BoardEntity() = default;
+};
 
 
 
 
 
+class Dice {
+private:
+   int minValue;
+   int maxValue;
+
+public:
+   Dice(int minValue, int maxValue) : minValue(minValue), maxValue(maxValue) {}
+
+   int roll() {
+       static random_device rd;
+       static mt19937 gen(rd());
+       uniform_int_distribution<> dis(minValue, maxValue);
+       return dis(gen);
+   }
+};
+
+
+
+
+class Ladder : public BoardEntity {
+public:
+   Ladder(int start, int end) : BoardEntity(start, end) {
+       if (start >= end) {
+           throw invalid_argument("Ladder bottom must be at a lower position than its top.");
+       }
+   }
+};
+
+
+
+class Player {
+private:
+   string name;
+   int position;
+
+public:
+   Player(const string& name) : name(name), position(0) {}
+
+   string getName() const {
+       return name;
+   }
+
+   int getPosition() const {
+       return position;
+   }
+
+   void setPosition(int position) {
+       this->position = position;
+   }
+};
+
+
+
+
+class Snake : public BoardEntity {
+public:
+   Snake(int start, int end) : BoardEntity(start, end) {
+       if (start <= end) {
+           throw invalid_argument("Snake head must be at a higher position than its tail.");
+       }
+   }
+};
+
+
+
+
+enum GameStatus {
+   NOT_STARTED,
+   RUNNING,
+   FINISHED
+};
+
+
+
+class Game {
+private:
+   Board board;
+   queue<Player> players;
+   Dice dice;
+   GameStatus status;
+   Player* winner;
+
+   Game(const Board& board, const queue<Player>& players, const Dice& dice) 
+       : board(board), players(players), dice(dice), status(NOT_STARTED), winner(nullptr) {}
+
+public:
+   void play() {
+       if (players.size() < 2) {
+           cout << "Cannot start game. At least 2 players are required." << endl;
+           return;
+       }
+
+       this->status = RUNNING;
+       cout << "Game started!" << endl;
+
+       while (status == RUNNING) {
+           Player currentPlayer = players.front();
+           players.pop();
+           takeTurn(currentPlayer);
+
+           if (status == RUNNING) {
+               players.push(currentPlayer);
+           }
+       }
+
+       cout << "Game Finished!" << endl;
+       if (winner != nullptr) {
+           cout << "The winner is " << winner->getName() << "!" << endl;
+       }
+   }
+
+private:
+   void takeTurn(Player& player) {
+       int roll = dice.roll();
+       cout << "\n" << player.getName() << "'s turn. Rolled a " << roll << "." << endl;
+
+       int currentPosition = player.getPosition();
+       int nextPosition = currentPosition + roll;
+
+       if (nextPosition > board.getSize()) {
+           cout << "Oops, " << player.getName() << " needs to land exactly on " << board.getSize() << ". Turn skipped." << endl;
+           return;
+       }
+
+       if (nextPosition == board.getSize()) {
+           player.setPosition(nextPosition);
+           this->winner = &player;
+           this->status = FINISHED;
+           cout << "Hooray! " << player.getName() << " reached the final square " << board.getSize() << " and won!" << endl;
+           return;
+       }
+
+       int finalPosition = board.getFinalPosition(nextPosition);
+
+       if (finalPosition > nextPosition) {
+           cout << "Wow! " << player.getName() << " found a ladder 🪜 at " << nextPosition << " and climbed to " << finalPosition << "." << endl;
+       } else if (finalPosition < nextPosition) {
+           cout << "Oh no! " << player.getName() << " was bitten by a snake 🐍 at " << nextPosition << " and slid down to " << finalPosition << "." << endl;
+       } else {
+           cout << player.getName() << " moved from " << currentPosition << " to " << finalPosition << "." << endl;
+       }
+
+       player.setPosition(finalPosition);
+
+       if (roll == 6) {
+           cout << player.getName() << " rolled a 6 and gets another turn!" << endl;
+           takeTurn(player);
+       }
+   }
+
+public:
+   class Builder {
+   private:
+       Board* board;
+       queue<Player> players;
+       Dice* dice;
+
+   public:
+       Builder() : board(nullptr), dice(nullptr) {}
+
+       Builder& setBoard(int boardSize, const vector<BoardEntity*>& boardEntities) {
+           this->board = new Board(boardSize, boardEntities);
+           return *this;
+       }
+
+       Builder& setPlayers(const vector<string>& playerNames) {
+           queue<Player> tempPlayers;
+           for (const string& playerName : playerNames) {
+               tempPlayers.push(Player(playerName));
+           }
+           this->players = tempPlayers;
+           return *this;
+       }
+
+       Builder& setDice(Dice* dice) {
+           this->dice = dice;
+           return *this;
+       }
+
+       Game build() {
+           if (board == nullptr || players.empty() || dice == nullptr) {
+               throw invalid_argument("Board, Players, and Dice must be set.");
+           }
+           return Game(*board, players, *dice);
+       }
+
+       ~Builder() {
+           delete board;
+           delete dice;
+       }
+   };
+};
 
 
 
 
 
+class SnakeAndLadderDemo {
+public:
+   static void main() {
+       vector<BoardEntity*> boardEntities = {
+           new Snake(17, 7), new Snake(54, 34),
+           new Snake(62, 19), new Snake(98, 79),
+           new Ladder(3, 38), new Ladder(24, 33),
+           new Ladder(42, 93), new Ladder(72, 84)
+       };
 
+       vector<string> players = {"Alice", "Bob", "Charlie"};
 
+       Game::Builder builder;
+       Game game = builder.setBoard(100, boardEntities)
+                         .setPlayers(players)
+                         .setDice(new Dice(1, 6))
+                         .build();
 
+       game.play();
 
+       for (BoardEntity* entity : boardEntities) {
+           delete entity;
+       }
+   }
+};
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+int main() {
+    SnakeAndLadderDemo::main();
+    return 0;
+}
 
 
 
