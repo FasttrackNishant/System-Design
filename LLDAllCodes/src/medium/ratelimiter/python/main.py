@@ -1,3 +1,83 @@
+class FixedWindowStrategy(RateLimitingStrategy):
+    def __init__(self, max_requests: int, window_size_in_seconds: int):
+        self.max_requests = max_requests
+        self.window_size_in_millis = window_size_in_seconds * 1000
+        self.user_request_map: Dict[str, 'UserRequestInfo'] = {}
+        self._lock = threading.Lock()
+
+    def allow_request(self, user_id: str) -> bool:
+        current_time = int(time.time() * 1000)
+        
+        with self._lock:
+            if user_id not in self.user_request_map:
+                self.user_request_map[user_id] = UserRequestInfo(current_time)
+
+            request_info = self.user_request_map[user_id]
+
+            with request_info.lock:
+                if current_time - request_info.window_start >= self.window_size_in_millis:
+                    request_info.reset(current_time)
+
+                if request_info.request_count < self.max_requests:
+                    request_info.request_count += 1
+                    return True
+                else:
+                    return False
+
+
+
+
+
+
+class RateLimitingStrategy(ABC):
+    @abstractmethod
+    def allow_request(self, user_id: str) -> bool:
+        pass
+
+
+
+
+
+
+class TokenBucket:
+    def __init__(self, capacity: int, refill_rate_per_second: int, current_time_millis: int):
+        self.capacity = capacity
+        self.refill_rate_per_second = refill_rate_per_second
+        self.tokens = capacity
+        self.last_refill_timestamp = current_time_millis
+        self.lock = threading.Lock()
+
+    def refill(self, current_time: int):
+        elapsed_time = current_time - self.last_refill_timestamp
+        tokens_to_add = int((elapsed_time / 1000.0) * self.refill_rate_per_second)
+
+        if tokens_to_add > 0:
+            self.tokens = min(self.capacity, self.tokens + tokens_to_add)
+            self.last_refill_timestamp = current_time
+
+class TokenBucketStrategy(RateLimitingStrategy):
+    def __init__(self, capacity: int, refill_rate_per_second: int):
+        self.capacity = capacity
+        self.refill_rate_per_second = refill_rate_per_second
+        self.user_buckets: Dict[str, 'TokenBucket'] = {}
+        self._lock = threading.Lock()
+
+    def allow_request(self, user_id: str) -> bool:
+        current_time = int(time.time() * 1000)
+        
+        with self._lock:
+            if user_id not in self.user_buckets:
+                self.user_buckets[user_id] = TokenBucket(self.capacity, self.refill_rate_per_second, current_time)
+            
+            bucket = self.user_buckets[user_id]
+
+            with bucket.lock:
+                bucket.refill(current_time)
+                if bucket.tokens > 0:
+                    bucket.tokens -= 1
+                    return True
+                else:
+                    return False
 
 
 
@@ -8,6 +88,54 @@
 
 
 
+class RateLimiterDemo:
+    @staticmethod
+    def main():
+        user_id = "user123"
+
+        print("=== Fixed Window Demo ===")
+        RateLimiterDemo.run_fixed_window_demo(user_id)
+
+        print("\n=== Token Bucket Demo ===")
+        RateLimiterDemo.run_token_bucket_demo(user_id)
+
+    @staticmethod
+    def run_fixed_window_demo(user_id: str):
+        max_requests = 5
+        window_seconds = 10
+
+        rate_limiter = FixedWindowStrategy(max_requests, window_seconds)
+        service = RateLimiterService.get_instance()
+        service.set_rate_limiter(rate_limiter)
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            for i in range(10):
+                executor.submit(service.handle_request, user_id)
+                try:
+                    time.sleep(0.5)
+                except KeyboardInterrupt:
+                    break
+
+    @staticmethod
+    def run_token_bucket_demo(user_id: str):
+        capacity = 5
+        refill_rate = 1  # 1 token per second
+
+        token_bucket_limiter = TokenBucketStrategy(capacity, refill_rate)
+        service = RateLimiterService.get_instance()
+        service.set_rate_limiter(token_bucket_limiter)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Simulate 10 rapid requests
+            for i in range(10):
+                executor.submit(service.handle_request, user_id)
+                try:
+                    time.sleep(0.3)  # faster than refill rate
+                except KeyboardInterrupt:
+                    break
+
+if __name__ == "__main__":
+    RateLimiterDemo.main()
 
 
 
@@ -17,34 +145,31 @@
 
 
 
+class RateLimiterService:
+    _instance = None
+    _lock = threading.Lock()
 
+    def __init__(self):
+        if RateLimiterService._instance is not None:
+            raise Exception("This class is a singleton!")
+        self.rate_limiting_strategy = None
 
+    @staticmethod
+    def get_instance():
+        if RateLimiterService._instance is None:
+            with RateLimiterService._lock:
+                if RateLimiterService._instance is None:
+                    RateLimiterService._instance = RateLimiterService()
+        return RateLimiterService._instance
 
+    def set_rate_limiter(self, rate_limiting_strategy: RateLimitingStrategy):
+        self.rate_limiting_strategy = rate_limiting_strategy
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def handle_request(self, user_id: str):
+        if self.rate_limiting_strategy.allow_request(user_id):
+            print(f"Request from user {user_id} is allowed")
+        else:
+            print(f"Request from user {user_id} is rejected: Rate limit exceeded")
 
 
 

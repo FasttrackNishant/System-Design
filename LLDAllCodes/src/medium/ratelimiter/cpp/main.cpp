@@ -1,3 +1,212 @@
+class UserRequestInfo {
+public:
+    long windowStart;
+    atomic<int> requestCount;
+    mutex lock;
+
+    UserRequestInfo(long startTime) : windowStart(startTime), requestCount(0) {}
+
+    void reset(long newStart) {
+        windowStart = newStart;
+        requestCount.store(0);
+    }
+};
+
+class FixedWindowStrategy : public RateLimitingStrategy {
+private:
+    int maxRequests;
+    long windowSizeInMillis;
+    map<string, UserRequestInfo*> userRequestMap;
+    mutex mapMutex;
+
+public:
+    FixedWindowStrategy(int maxRequests, long windowSizeInSeconds) 
+        : maxRequests(maxRequests), windowSizeInMillis(windowSizeInSeconds * 1000) {}
+
+    ~FixedWindowStrategy() {
+        for (auto& pair : userRequestMap) {
+            delete pair.second;
+        }
+    }
+
+    bool allowRequest(const string& userId) override {
+        auto currentTime = chrono::duration_cast<chrono::milliseconds>(
+            chrono::system_clock::now().time_since_epoch()).count();
+
+        lock_guard<mutex> mapLock(mapMutex);
+        
+        if (userRequestMap.find(userId) == userRequestMap.end()) {
+            userRequestMap[userId] = new UserRequestInfo(currentTime);
+        }
+
+        UserRequestInfo* requestInfo = userRequestMap[userId];
+
+        lock_guard<mutex> infoLock(requestInfo->lock);
+        
+        if (currentTime - requestInfo->windowStart >= windowSizeInMillis) {
+            requestInfo->reset(currentTime);
+        }
+
+        if (requestInfo->requestCount.load() < maxRequests) {
+            requestInfo->requestCount.fetch_add(1);
+            return true;
+        } else {
+            return false;
+        }
+    }
+};
+
+
+
+
+
+class RateLimitingStrategy {
+public:
+    virtual ~RateLimitingStrategy() = default;
+    virtual bool allowRequest(const string& userId) = 0;
+};
+
+
+
+
+
+
+
+
+class TokenBucket {
+public:
+    int tokens;
+    int capacity;
+    int refillRatePerSecond;
+    long lastRefillTimestamp;
+    mutex lock;
+
+    TokenBucket(int capacity, int refillRatePerSecond, long currentTimeMillis)
+        : capacity(capacity), refillRatePerSecond(refillRatePerSecond), 
+          tokens(capacity), lastRefillTimestamp(currentTimeMillis) {}
+
+    void refill(long currentTime) {
+        long elapsedTime = currentTime - lastRefillTimestamp;
+        int tokensToAdd = static_cast<int>((elapsedTime / 1000.0) * refillRatePerSecond);
+
+        if (tokensToAdd > 0) {
+            tokens = min(capacity, tokens + tokensToAdd);
+            lastRefillTimestamp = currentTime;
+        }
+    }
+};
+
+class TokenBucketStrategy : public RateLimitingStrategy {
+private:
+    int capacity;
+    int refillRatePerSecond;
+    map<string, TokenBucket*> userBuckets;
+    mutex mapMutex;
+
+public:
+    TokenBucketStrategy(int capacity, int refillRatePerSecond)
+        : capacity(capacity), refillRatePerSecond(refillRatePerSecond) {}
+
+    ~TokenBucketStrategy() {
+        for (auto& pair : userBuckets) {
+            delete pair.second;
+        }
+    }
+
+    bool allowRequest(const string& userId) override {
+        auto currentTime = chrono::duration_cast<chrono::milliseconds>(
+            chrono::system_clock::now().time_since_epoch()).count();
+
+        lock_guard<mutex> mapLock(mapMutex);
+        
+        if (userBuckets.find(userId) == userBuckets.end()) {
+            userBuckets[userId] = new TokenBucket(capacity, refillRatePerSecond, currentTime);
+        }
+        
+        TokenBucket* bucket = userBuckets[userId];
+
+        lock_guard<mutex> bucketLock(bucket->lock);
+        
+        bucket->refill(currentTime);
+        if (bucket->tokens > 0) {
+            bucket->tokens--;
+            return true;
+        } else {
+            return false;
+        }
+    }
+};
+
+
+
+
+
+
+
+
+
+class RateLimiterDemo {
+public:
+    static void main() {
+        string userId = "user123";
+
+        cout << "=== Fixed Window Demo ===" << endl;
+        runFixedWindowDemo(userId);
+
+        cout << "\n=== Token Bucket Demo ===" << endl;
+        runTokenBucketDemo(userId);
+    }
+
+private:
+    static void runFixedWindowDemo(const string& userId) {
+        int maxRequests = 5;
+        int windowSeconds = 10;
+
+        RateLimitingStrategy* rateLimiter = new FixedWindowStrategy(maxRequests, windowSeconds);
+        RateLimiterService* service = RateLimiterService::getInstance();
+        service->setRateLimiter(rateLimiter);
+
+        cout << "Testing Fixed Window: " << maxRequests << " requests per " << windowSeconds << " seconds" << endl;
+
+        // Make requests sequentially to avoid Judge0 threading issues
+        for (int i = 0; i < 10; i++) {
+            cout << "Request " << (i + 1) << ": ";
+            service->handleRequest(userId);
+            
+            // Small delay between requests
+            this_thread::sleep_for(chrono::milliseconds(100));
+        }
+
+        delete rateLimiter;
+    }
+
+    static void runTokenBucketDemo(const string& userId) {
+        int capacity = 5;
+        int refillRate = 1; // 1 token per second
+
+        RateLimitingStrategy* tokenBucketLimiter = new TokenBucketStrategy(capacity, refillRate);
+        RateLimiterService* service = RateLimiterService::getInstance();
+        service->setRateLimiter(tokenBucketLimiter);
+
+        cout << "Testing Token Bucket: capacity=" << capacity << ", refill=" << refillRate << " tokens/sec" << endl;
+
+        // Make requests sequentially
+        for (int i = 0; i < 10; i++) {
+            cout << "Request " << (i + 1) << ": ";
+            service->handleRequest(userId);
+            
+            // Small delay between requests
+            this_thread::sleep_for(chrono::milliseconds(200));
+        }
+
+        delete tokenBucketLimiter;
+    }
+};
+
+int main() {
+    RateLimiterDemo::main();
+    return 0;
+}
 
 
 
@@ -8,33 +217,41 @@
 
 
 
+class RateLimiterService {
+private:
+    static RateLimiterService* instance;
+    static mutex instanceMutex;
+    RateLimitingStrategy* rateLimitingStrategy;
 
+    RateLimiterService() : rateLimitingStrategy(nullptr) {}
 
+public:
+    static RateLimiterService* getInstance() {
+        if (instance == nullptr) {
+            lock_guard<mutex> lock(instanceMutex);
+            if (instance == nullptr) {
+                instance = new RateLimiterService();
+            }
+        }
+        return instance;
+    }
 
+    void setRateLimiter(RateLimitingStrategy* rateLimitingStrategy) {
+        this->rateLimitingStrategy = rateLimitingStrategy;
+    }
 
+    void handleRequest(const string& userId) {
+        if (rateLimitingStrategy && rateLimitingStrategy->allowRequest(userId)) {
+            cout << "Request from user " << userId << " is allowed" << endl;
+        } else {
+            cout << "Request from user " << userId << " is rejected: Rate limit exceeded" << endl;
+        }
+    }
+};
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Static member definitions
+RateLimiterService* RateLimiterService::instance = nullptr;
+mutex RateLimiterService::instanceMutex;
 
 
 

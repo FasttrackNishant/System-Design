@@ -1,3 +1,59 @@
+class FixedWindowStrategy : IRateLimitingStrategy
+{
+    private readonly int maxRequests;
+    private readonly long windowSizeInMillis;
+    private readonly ConcurrentDictionary<string, UserRequestInfo> userRequestMap = new ConcurrentDictionary<string, UserRequestInfo>();
+
+    public FixedWindowStrategy(int maxRequests, long windowSizeInSeconds)
+    {
+        this.maxRequests = maxRequests;
+        this.windowSizeInMillis = windowSizeInSeconds * 1000;
+    }
+
+    public bool AllowRequest(string userId)
+    {
+        long currentTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        userRequestMap.TryAdd(userId, new UserRequestInfo(currentTime));
+
+        UserRequestInfo requestInfo = userRequestMap[userId];
+
+        lock (requestInfo)
+        {
+            if (currentTime - requestInfo.WindowStart >= windowSizeInMillis)
+            {
+                requestInfo.Reset(currentTime);
+            }
+
+            if (requestInfo.RequestCount < maxRequests)
+            {
+                requestInfo.RequestCount++;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+
+    private class UserRequestInfo
+    {
+        public long WindowStart { get; set; }
+        public int RequestCount { get; set; }
+
+        public UserRequestInfo(long startTime)
+        {
+            this.WindowStart = startTime;
+            this.RequestCount = 0;
+        }
+
+        public void Reset(long newStart)
+        {
+            this.WindowStart = newStart;
+            this.RequestCount = 0;
+        }
+    }
+}
 
 
 
@@ -11,6 +67,78 @@
 
 
 
+interface IRateLimitingStrategy
+{
+    bool AllowRequest(string userId);
+}
+
+
+
+
+
+
+
+class TokenBucketStrategy : IRateLimitingStrategy
+{
+    private readonly int capacity;
+    private readonly int refillRatePerSecond;
+    private readonly ConcurrentDictionary<string, TokenBucket> userBuckets = new ConcurrentDictionary<string, TokenBucket>();
+
+    public TokenBucketStrategy(int capacity, int refillRatePerSecond)
+    {
+        this.capacity = capacity;
+        this.refillRatePerSecond = refillRatePerSecond;
+    }
+
+    public bool AllowRequest(string userId)
+    {
+        long currentTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        userBuckets.TryAdd(userId, new TokenBucket(capacity, refillRatePerSecond, currentTime));
+        TokenBucket bucket = userBuckets[userId];
+
+        lock (bucket)
+        {
+            bucket.Refill(currentTime);
+            if (bucket.Tokens > 0)
+            {
+                bucket.Tokens--;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+
+    private class TokenBucket
+    {
+        public int Tokens { get; set; }
+        public int Capacity { get; }
+        public int RefillRatePerSecond { get; }
+        public long LastRefillTimestamp { get; set; }
+
+        public TokenBucket(int capacity, int refillRatePerSecond, long currentTimeMillis)
+        {
+            this.Capacity = capacity;
+            this.RefillRatePerSecond = refillRatePerSecond;
+            this.Tokens = capacity;
+            this.LastRefillTimestamp = currentTimeMillis;
+        }
+
+        public void Refill(long currentTime)
+        {
+            long elapsedTime = currentTime - LastRefillTimestamp;
+            int tokensToAdd = (int)((elapsedTime / 1000.0) * RefillRatePerSecond);
+
+            if (tokensToAdd > 0)
+            {
+                Tokens = Math.Min(Capacity, Tokens + tokensToAdd);
+                LastRefillTimestamp = currentTime;
+            }
+        }
+    }
+}
 
 
 
@@ -21,6 +149,80 @@
 
 
 
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+public class RateLimiterDemo
+{
+    public static void Main(string[] args)
+    {
+        string userId = "user123";
+
+        Console.WriteLine("=== Fixed Window Demo ===");
+        RunFixedWindowDemo(userId);
+
+        Console.WriteLine("\n=== Token Bucket Demo ===");
+        RunTokenBucketDemo(userId);
+    }
+
+    private static void RunFixedWindowDemo(string userId)
+    {
+        int maxRequests = 5;
+        int windowSeconds = 10;
+
+        IRateLimitingStrategy rateLimiter = new FixedWindowStrategy(maxRequests, windowSeconds);
+        RateLimiterService service = RateLimiterService.GetInstance();
+        service.SetRateLimiter(rateLimiter);
+
+        List<Task> tasks = new List<Task>();
+
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(Task.Run(() => service.HandleRequest(userId)));
+            try
+            {
+                Thread.Sleep(500);
+            }
+            catch (ThreadInterruptedException)
+            {
+                Thread.CurrentThread.Interrupt();
+            }
+        }
+
+        Task.WaitAll(tasks.ToArray());
+    }
+
+    private static void RunTokenBucketDemo(string userId)
+    {
+        int capacity = 5;
+        int refillRate = 1; // 1 token per second
+
+        IRateLimitingStrategy tokenBucketLimiter = new TokenBucketStrategy(capacity, refillRate);
+        RateLimiterService service = RateLimiterService.GetInstance();
+        service.SetRateLimiter(tokenBucketLimiter);
+
+        List<Task> tasks = new List<Task>();
+
+        // Simulate 10 rapid requests
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(Task.Run(() => service.HandleRequest(userId)));
+            try
+            {
+                Thread.Sleep(300); // faster than refill rate
+            }
+            catch (ThreadInterruptedException)
+            {
+                Thread.CurrentThread.Interrupt();
+            }
+        }
+
+        Task.WaitAll(tasks.ToArray());
+    }
+}
 
 
 
@@ -31,17 +233,46 @@
 
 
 
+class RateLimiterService
+{
+    private static RateLimiterService instance;
+    private static readonly object lockObject = new object();
+    private IRateLimiter rateLimiter;
 
+    private RateLimiterService() { }
 
+    public static RateLimiterService GetInstance()
+    {
+        if (instance == null)
+        {
+            lock (lockObject)
+            {
+                if (instance == null)
+                {
+                    instance = new RateLimiterService();
+                }
+            }
+        }
+        return instance;
+    }
 
+    public void SetRateLimiter(IRateLimiter rateLimiter)
+    {
+        this.rateLimiter = rateLimiter;
+    }
 
-
-
-
-
-
-
-
+    public void HandleRequest(string userId)
+    {
+        if (rateLimiter.AllowRequest(userId))
+        {
+            Console.WriteLine($"Request from user {userId} is allowed");
+        }
+        else
+        {
+            Console.WriteLine($"Request from user {userId} is rejected: Rate limit exceeded");
+        }
+    }
+}
 
 
 
